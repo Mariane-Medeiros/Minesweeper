@@ -4,14 +4,13 @@ import random
 import numpy as np
 
 pygame.init()
-TAMANHO = 100
-ROW, COLUMN = 10, 10
+ROW, COLUMN = 15, 15
+TAMANHO = ROW * COLUMN
 ADJACENTE = [(-1, -1), (-1, 0), (-1, +1), (0, -1),
              (0, +1), (+1, -1), (+1, 0), (+1, +1)]
 run = True
 WIDTH = 1000
 HEIGHT = 600
-ROW, COLUMN = 10, 10
 cor_retangulo = (190, 190, 190)
 cor_linha = (255, 255, 255)
 fonte = pygame.font.SysFont('Arial', 30)
@@ -26,6 +25,7 @@ largura_retangulo = 35
 altura_retangulo = 35
 largura_total_matriz = COLUMN * largura_retangulo
 altura_total_matriz = ROW * altura_retangulo
+rec_posicao_linha, rec_posicao_coluna = 0, 0
 
 # Posição inicial para centralizar a matriz
 matriz_x_inicial = (WIDTH - largura_total_matriz) // 2
@@ -44,26 +44,40 @@ pygame.display.set_caption('Campo Minado')
 
 
 class Field:
+    linha = 0
+    coluna = 0
+
     def __init__(self):
         randombombs = np.random.choice([0, 9], size=100, p=[0.8, 0.2])
         self.matriz = randombombs.reshape(10, 10)
 
-    def create_matrix(self):
+    def run_matriz(self):
         for i in range(self.matriz.shape[0]):  # Linha
             for j in range(self.matriz.shape[1]):  # Coluna
                 if self.matriz[i][j] >= 9:
-                    for l in range(8):
-                        linha = i + ADJACENTE[l][0]
-                        coluna = j + ADJACENTE[l][1]
-                        if linha < 0 or coluna < 0 or linha > 9 or coluna > 9:
-                            pass
-                        else:
-                            self.matriz[linha][coluna] += 1
+                    Locate_bombs.check_adjacent(i, j)
+                    if Field.linha < 0 or Field.coluna < 0 or Field.linha > 9 or Field.coluna > 9:
+                        pass
+                    else:
+                        self.matriz[self.linha][self.coluna] += 1
         return self.matriz
 
 
+class Locate_bombs:
+    linha = 0
+    coluna = 0
+
+    @staticmethod
+    def check_adjacent(i, j):
+        for l in range(8):
+            linha = i + ADJACENTE[l][0]
+            coluna = j + ADJACENTE[l][1]
+
+
 field = Field()
-matriz = field.create_matrix()
+field.run_matriz()
+print(field.matriz)
+state_matriz = np.zeros((ROW, COLUMN), dtype=int)
 
 
 def desenhar_tela():
@@ -94,7 +108,8 @@ def desenhar_tela():
 
 def find_tile(x, y):
     global x_rect, y_rect  # pra poder acessar a posiçao que vamos desenhar os numeros
-    global ultimo_retangulo  # so comeca a desenhar os retangulos quando tiver algum
+    global ultimo_retangulo
+    global rec_posicao_linha, rec_posicao_coluna
     if x < matriz_x_inicial or x > matriz_x_final or y < matriz_y_inicial or y > matriz_y_final:  # nao sei se o uso de or esta certo
         return
     x -= matriz_x_inicial
@@ -108,12 +123,14 @@ def find_tile(x, y):
     reveal_tile(rec_posicao_linha, rec_posicao_coluna)
 
 
-def reveal_tile(l, c):
-    global contador
+def reveal_tile(l, c):  # acho essa função descenessaria
     global numeros
     numero = field.matriz[l][c]
     numeros.append(numero)
-    # print(numeros)
+
+
+def propagate_empty_cells():
+    global rec_posicao_linha, rec_posicao_coluna
 
 
 def main():
