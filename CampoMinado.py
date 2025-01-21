@@ -43,41 +43,46 @@ windown = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption('Campo Minado')
 
 
+@staticmethod
+def check_adjacent(i, j):
+    for l in range(8):
+        linha = i + ADJACENTE[l][0]
+        coluna = j + ADJACENTE[l][1]
+        yield linha, coluna
+
+
 class Field:
     linha = 0
     coluna = 0
 
     def __init__(self):
-        randombombs = np.random.choice([0, 9], size=100, p=[0.8, 0.2])
-        self.matriz = randombombs.reshape(10, 10)
+        randombombs = np.random.choice([0, 9], size=TAMANHO, p=[0.8, 0.2])
+        self.matriz = randombombs.reshape(ROW, COLUMN)
 
     def run_matriz(self):
         for i in range(self.matriz.shape[0]):  # Linha
             for j in range(self.matriz.shape[1]):  # Coluna
                 if self.matriz[i][j] >= 9:
-                    Locate_bombs.check_adjacent(i, j)
-                    if Field.linha < 0 or Field.coluna < 0 or Field.linha > 9 or Field.coluna > 9:
-                        pass
-                    else:
-                        self.matriz[self.linha][self.coluna] += 1
+                    for linha, coluna in check_adjacent(i, j):
+                        if linha < 0 or coluna < 0 or linha >= ROW or coluna >= COLUMN:
+                            print(coluna)
+                            pass
+                        else:
+                            self.matriz[linha][coluna] += 1
         return self.matriz
-
-
-class Locate_bombs:
-    linha = 0
-    coluna = 0
-
-    @staticmethod
-    def check_adjacent(i, j):
-        for l in range(8):
-            linha = i + ADJACENTE[l][0]
-            coluna = j + ADJACENTE[l][1]
 
 
 field = Field()
 field.run_matriz()
-print(field.matriz)
 state_matriz = np.zeros((ROW, COLUMN), dtype=int)
+
+
+class Reveal_empty:
+
+    def propagate_empty_cells():
+        global rec_posicao_linha, rec_posicao_coluna
+
+    check_adjacent()
 
 
 def desenhar_tela():
@@ -110,27 +115,29 @@ def find_tile(x, y):
     global x_rect, y_rect  # pra poder acessar a posiçao que vamos desenhar os numeros
     global ultimo_retangulo
     global rec_posicao_linha, rec_posicao_coluna
-    if x < matriz_x_inicial or x > matriz_x_final or y < matriz_y_inicial or y > matriz_y_final:  # nao sei se o uso de or esta certo
+    # saber se clicou fora da matriz
+    if x < matriz_x_inicial or x > matriz_x_final or y < matriz_y_inicial or y > matriz_y_final:
         return
+    # achar as cordenada relativas de x e y
     x -= matriz_x_inicial
-    rec_posicao_linha = x // largura_retangulo
     y -= matriz_y_inicial
+    # divido o valor de x e y pelos retangulos para saber a linha e coluna
+    rec_posicao_linha = x // largura_retangulo
     rec_posicao_coluna = y // altura_retangulo
-    # calculo para acessar o primeiro ponto do novo retangulo
+    # SEPARA DO RESTANTE calculo para acessar o primeiro ponto do novo retangulo(para poder desenhar)
     x_rect = rec_posicao_linha * largura_retangulo + matriz_x_inicial
     y_rect = rec_posicao_coluna * altura_retangulo + matriz_y_inicial
     ultimo_retangulo.append((x_rect, y_rect))
     reveal_tile(rec_posicao_linha, rec_posicao_coluna)
+    Reveal_empty.propagate_empty_cells()
 
 
-def reveal_tile(l, c):  # acho essa função descenessaria
+def reveal_tile(l, c):
     global numeros
+    # pegando o retangulo que esta posicionado na linha e coluna que eu quero e colocando no array para se desenhado
     numero = field.matriz[l][c]
     numeros.append(numero)
-
-
-def propagate_empty_cells():
-    global rec_posicao_linha, rec_posicao_coluna
+    return
 
 
 def main():
