@@ -4,14 +4,16 @@ import random
 import numpy as np
 
 pygame.init()
-TAMANHO = 100
-ROW, COLUMN = 10, 10
+ROW, COLUMN = 15, 15
+TAMANHO = ROW * COLUMN
 ADJACENTE = [(-1, -1), (-1, 0), (-1, +1), (0, -1),
              (0, +1), (+1, -1), (+1, 0), (+1, +1)]
 run = True
 WIDTH = 1000
 HEIGHT = 600
-ROW, COLUMN = 10, 10
+BOMBPERCENTAGE = 0.15
+SAFEPERCENTAGE = 0.85
+propagate_empty_array = []
 cor_retangulo = (190, 190, 190)
 cor_linha = (255, 255, 255)
 fonte = pygame.font.SysFont('Arial', 30)
@@ -26,6 +28,7 @@ largura_retangulo = 35
 altura_retangulo = 35
 largura_total_matriz = COLUMN * largura_retangulo
 altura_total_matriz = ROW * altura_retangulo
+rec_posicao_linha, rec_posicao_coluna = 0, 0
 
 # Posição inicial para centralizar a matriz
 matriz_x_inicial = (WIDTH - largura_total_matriz) // 2
@@ -43,19 +46,29 @@ windown = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption('Campo Minado')
 
 
-class Field:
-    def __init__(self):
-        randombombs = np.random.choice([0, 9], size=100, p=[0.8, 0.2])
-        self.matriz = randombombs.reshape(10, 10)
+@staticmethod
+def check_adjacent(l, c):
+    for i in range(8):
+        linha = l + ADJACENTE[i][0]
+        coluna = c + ADJACENTE[i][1]
+        yield linha, coluna
 
-    def create_matrix(self):
+
+class Field:
+    linha = 0
+    coluna = 0
+
+    def __init__(self):
+        randombombs = np.random.choice([0, 9], size=TAMANHO, p=[
+                                       SAFEPERCENTAGE, BOMBPERCENTAGE])
+        self.matriz = randombombs.reshape(ROW, COLUMN)
+
+    def run_matriz(self):
         for i in range(self.matriz.shape[0]):  # Linha
             for j in range(self.matriz.shape[1]):  # Coluna
                 if self.matriz[i][j] >= 9:
-                    for l in range(8):
-                        linha = i + ADJACENTE[l][0]
-                        coluna = j + ADJACENTE[l][1]
-                        if linha < 0 or coluna < 0 or linha > 9 or coluna > 9:
+                    for linha, coluna in check_adjacent(i, j):
+                        if linha < 0 or coluna < 0 or linha >= ROW or coluna >= COLUMN:
                             pass
                         else:
                             self.matriz[linha][coluna] += 1
@@ -63,7 +76,38 @@ class Field:
 
 
 field = Field()
-matriz = field.create_matrix()
+field.run_matriz()
+print(field.matriz)
+state_matriz = np.zeros((ROW, COLUMN), dtype=int)
+
+# TALVEZ TORNAR TODOS OS METODOS STATICS???
+# OS METODOS DA CLASSE ESTAO COMPLETAMENTE BAGUNÇADOS, TAVA TENTANDO
+
+
+class Reveal_empty:
+    # nem sei se isso deveria ser uma função
+    def control_progation(linha, coluna):
+        # linha e coluna depende de quem vai chamar a matriz
+        if field.matriz[linha][coluna] != 0:
+            return
+        else:
+            Reveal_empty.iterate_array_tuples()
+
+    def iterate_array_tuples():
+        for l, c in propagate_empty_array:
+            # ultimo comando:
+            propagate_empty_array.clear
+
+    def propagate_empty_cells():
+        global rec_posicao_linha, rec_posicao_coluna
+        if field.matriz[rec_posicao_linha][rec_posicao_coluna] != 0:
+            return
+        else:
+            for linha, coluna in check_adjacent(rec_posicao_linha, rec_posicao_coluna):
+                if state_matriz[linha][coluna] == 0:
+                    rect_drawing_coordinates()
+                    reveal_numbers(linha, coluna)
+                    state_matriz[linha][coluna] = 1
 
 
 def desenhar_tela():
@@ -76,6 +120,7 @@ def desenhar_tela():
                              (x, y, largura_retangulo, altura_retangulo))
             pygame.draw.rect(
                 windown, cor_linha, (x, y, largura_retangulo, altura_retangulo), 2)
+    # desenha um retangulo por cima para sinalizar que ele foi clicado
     if ultimo_retangulo:
         for i in ultimo_retangulo:
             x, y = i
@@ -83,6 +128,7 @@ def desenhar_tela():
                 windown, ROXO, (x, y, largura_retangulo, altura_retangulo))
             pygame.display.update(
                 (x, y, largura_retangulo, altura_retangulo))
+    # desenha o numero acima do retangulo
     if numeros:
         for i, numero in enumerate(numeros):
             if i < len(ultimo_retangulo):
@@ -94,26 +140,37 @@ def desenhar_tela():
 
 def find_tile(x, y):
     global x_rect, y_rect  # pra poder acessar a posiçao que vamos desenhar os numeros
-    global ultimo_retangulo  # so comeca a desenhar os retangulos quando tiver algum
-    if x < matriz_x_inicial or x > matriz_x_final or y < matriz_y_inicial or y > matriz_y_final:  # nao sei se o uso de or esta certo
+    global rec_posicao_linha, rec_posicao_coluna
+    # saber se clicou fora da matriz
+    if x < matriz_x_inicial or x > matriz_x_final or y < matriz_y_inicial or y > matriz_y_final:
         return
+    # achar as cordenada relativas de x e y
     x -= matriz_x_inicial
-    rec_posicao_linha = x // largura_retangulo
     y -= matriz_y_inicial
+    # divido o valor de x e y pelos retangulos para saber a linha e coluna
+    rec_posicao_linha = x // largura_retangulo
     rec_posicao_coluna = y // altura_retangulo
-    # calculo para acessar o primeiro ponto do novo retangulo
+    # DEVO CHAMAR ISSO AQUI????
+    rect_drawing_coordinates()
+    reveal_numbers(rec_posicao_linha, rec_posicao_coluna)
+
+
+def rect_drawing_coordinates():
+    global ultimo_retangulo
+    global x_rect, y_rect
+    global rec_posicao_linha, rec_posicao_coluna
     x_rect = rec_posicao_linha * largura_retangulo + matriz_x_inicial
     y_rect = rec_posicao_coluna * altura_retangulo + matriz_y_inicial
-    ultimo_retangulo.append((x_rect, y_rect))
-    reveal_tile(rec_posicao_linha, rec_posicao_coluna)
+    if state_matriz[rec_posicao_linha][rec_posicao_coluna] == 0:
+        ultimo_retangulo.append((x_rect, y_rect))
 
 
-def reveal_tile(l, c):
-    global contador
+def reveal_numbers(l, c):
     global numeros
-    numero = field.matriz[l][c]
-    numeros.append(numero)
-    # print(numeros)
+    # pegando o retangulo que esta posicionado na linha e coluna que eu quero e colocando no array para se desenhado
+    if state_matriz[rec_posicao_linha][rec_posicao_coluna] == 0:
+        numero = field.matriz[l][c]
+        numeros.append(numero)
 
 
 def main():
