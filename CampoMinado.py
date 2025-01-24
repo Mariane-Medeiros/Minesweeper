@@ -20,9 +20,6 @@ fonte = pygame.font.SysFont('Arial', 30)
 # Variáveis globais
 ultimo_retangulo = []
 numeros = []
-x_rect = 0
-y_rect = 0
-contador = 0
 
 largura_retangulo = 35
 altura_retangulo = 35
@@ -51,7 +48,10 @@ def check_adjacent(l, c):
     for i in range(8):
         linha = l + ADJACENTE[i][0]
         coluna = c + ADJACENTE[i][1]
-        yield linha, coluna
+        if linha < 0 or coluna < 0 or linha >= ROW or coluna >= COLUMN:
+            pass
+        else:
+            yield linha, coluna
 
 
 class Field:
@@ -68,17 +68,16 @@ class Field:
             for j in range(self.matriz.shape[1]):  # Coluna
                 if self.matriz[i][j] >= 9:
                     for linha, coluna in check_adjacent(i, j):
-                        if linha < 0 or coluna < 0 or linha >= ROW or coluna >= COLUMN:
-                            pass
-                        else:
-                            self.matriz[linha][coluna] += 1
+                        self.matriz[linha][coluna] += 1
         return self.matriz
 
 
 field = Field()
 field.run_matriz()
 print(field.matriz)
-state_matriz = np.zeros((ROW, COLUMN), dtype=int)
+state_matriz_rec = np.zeros((ROW, COLUMN), dtype=int)
+state_matriz_number = np.zeros((ROW, COLUMN), dtype=int)
+state_matriz_propagation = np.zeros((ROW, COLUMN), dtype=int)
 
 # TALVEZ TORNAR TODOS OS METODOS STATICS???
 # OS METODOS DA CLASSE ESTAO COMPLETAMENTE BAGUNÇADOS, TAVA TENTANDO
@@ -86,32 +85,40 @@ state_matriz = np.zeros((ROW, COLUMN), dtype=int)
 
 class Reveal_empty:
     # nem sei se isso deveria ser uma função
-    def control_progation(linha, coluna):
+    def control_progation():
         # linha e coluna depende de quem vai chamar a matriz
-        if field.matriz[linha][coluna] != 0:
-            return
-        else:
-            Reveal_empty.iterate_array_tuples()
-
-    def iterate_array_tuples():
-        for l, c in propagate_empty_array:
-            # ultimo comando:
-            propagate_empty_array.clear
-
-    def propagate_empty_cells():
-        global rec_posicao_linha, rec_posicao_coluna
         if field.matriz[rec_posicao_linha][rec_posicao_coluna] != 0:
             return
         else:
-            for linha, coluna in check_adjacent(rec_posicao_linha, rec_posicao_coluna):
-                if state_matriz[linha][coluna] == 0:
-                    rect_drawing_coordinates()
-                    reveal_numbers(linha, coluna)
-                    state_matriz[linha][coluna] = 1
+            # coloco ele pra o array nao iniciar vazio
+            if state_matriz_propagation[rec_posicao_linha][rec_posicao_coluna] == 0:
+                propagate_empty_array.append(
+                    (rec_posicao_linha, rec_posicao_coluna))
+                # print(rec_posicao_linha, rec_posicao_coluna)
+                state_matriz_propagation[rec_posicao_linha][rec_posicao_coluna] = 1
+            Reveal_empty.propagate_empty_cells()
+
+    def propagate_empty_cells():
+        # (propagate_empty_array)
+        # rec_posicao_linha e rec_posicao_coluna sempre guardam o ultimo rec clicado
+        # for apenas pra percorrer o propagete_mepty_array
+        for i in range(len(propagate_empty_array)):
+            for linha, coluna in check_adjacent(propagate_empty_array[i][0], propagate_empty_array[i][1]):
+                if field.matriz[linha][coluna] == 0:
+                    if state_matriz_propagation[linha][coluna] == 0:
+                        propagate_empty_array.append((linha, coluna))
+                        rect_drawing_coordinates()
+                        reveal_numbers(linha, coluna)
+                        state_matriz_propagation[linha][coluna] = 1
+                        print(propagate_empty_array)
+                        print(f'l{linha}, coluna{coluna}\n')
+                    else:  # se eu bater em qualquer numero eu faço tudo menos colocar ele no array
+                        rect_drawing_coordinates()
+                        reveal_numbers(linha, coluna)
+                        state_matriz_propagation[linha][coluna] = 1
 
 
 def desenhar_tela():
-    global contador
     for i in range(ROW):
         for j in range(COLUMN):
             x = matriz_x_inicial + j * largura_retangulo
@@ -139,7 +146,7 @@ def desenhar_tela():
 
 
 def find_tile(x, y):
-    global x_rect, y_rect  # pra poder acessar a posiçao que vamos desenhar os numeros
+    # pra poder acessar a posiçao que vamos desenhar os numeros
     global rec_posicao_linha, rec_posicao_coluna
     # saber se clicou fora da matriz
     if x < matriz_x_inicial or x > matriz_x_final or y < matriz_y_inicial or y > matriz_y_final:
@@ -148,33 +155,31 @@ def find_tile(x, y):
     x -= matriz_x_inicial
     y -= matriz_y_inicial
     # divido o valor de x e y pelos retangulos para saber a linha e coluna
-    rec_posicao_linha = x // largura_retangulo
-    rec_posicao_coluna = y // altura_retangulo
-    # DEVO CHAMAR ISSO AQUI????
+    rec_posicao_coluna = x // largura_retangulo
+    rec_posicao_linha = y // altura_retangulo
     rect_drawing_coordinates()
     reveal_numbers(rec_posicao_linha, rec_posicao_coluna)
 
 
 def rect_drawing_coordinates():
     global ultimo_retangulo
-    global x_rect, y_rect
-    global rec_posicao_linha, rec_posicao_coluna
-    x_rect = rec_posicao_linha * largura_retangulo + matriz_x_inicial
-    y_rect = rec_posicao_coluna * altura_retangulo + matriz_y_inicial
-    if state_matriz[rec_posicao_linha][rec_posicao_coluna] == 0:
+    x_rect = rec_posicao_coluna * largura_retangulo + matriz_x_inicial
+    y_rect = rec_posicao_linha * altura_retangulo + matriz_y_inicial
+    if state_matriz_number[rec_posicao_linha][rec_posicao_coluna] == 0:
         ultimo_retangulo.append((x_rect, y_rect))
+        state_matriz_number[rec_posicao_linha][rec_posicao_coluna] = 1
 
 
 def reveal_numbers(l, c):
     global numeros
     # pegando o retangulo que esta posicionado na linha e coluna que eu quero e colocando no array para se desenhado
-    if state_matriz[rec_posicao_linha][rec_posicao_coluna] == 0:
+    if state_matriz_rec[l][c] == 0:
         numero = field.matriz[l][c]
         numeros.append(numero)
+        state_matriz_rec[l][c] = 1
 
 
 def main():
-
     while run:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -187,6 +192,7 @@ def main():
         if event.type == pygame.MOUSEBUTTONDOWN:
             x, y = event.pos
             find_tile(x, y)
+            Reveal_empty.control_progation()
 
 
 if __name__ == '__main__':
