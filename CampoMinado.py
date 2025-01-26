@@ -18,16 +18,15 @@ propagate_empty_array = []
 cor_retangulo = (190, 190, 190)
 cor_linha = (255, 255, 255)
 fonte = pygame.font.SysFont('Arial', 30)
-# Variáveis globais
 ultimo_retangulo = []
 numeros = []
-testi = 1
+BLACK = (0, 0, 0)
 largura_retangulo = 35
 altura_retangulo = 35
 largura_total_matriz = COLUMN * largura_retangulo
 altura_total_matriz = ROW * altura_retangulo
 rec_posicao_linha, rec_posicao_coluna = 0, 0
-
+bomb_img = pygame.image.load("assets/bomb.png")
 # Posição inicial para centralizar a matriz
 matriz_x_inicial = (WIDTH - largura_total_matriz) // 2
 matriz_y_inicial = (HEIGHT - altura_total_matriz) // 2
@@ -46,11 +45,9 @@ pygame.display.set_caption('Campo Minado')
 
 @staticmethod
 def check_adjacent(l, c):
-    # print('check ===========')
     for i in range(8):
         linha = l + ADJACENTE[i][0]
         coluna = c + ADJACENTE[i][1]
-        # print(f'para l:{l} e c: {c} temos linha:{linha} e coluna{coluna}')
         if linha < 0 or coluna < 0 or linha >= ROW or coluna >= COLUMN:
             pass
         else:
@@ -58,8 +55,6 @@ def check_adjacent(l, c):
 
 
 class Field:
-    linha = 0
-    coluna = 0
 
     def __init__(self):
         randombombs = np.random.choice([0, 9], size=TAMANHO, p=[
@@ -75,15 +70,18 @@ class Field:
         return self.matriz
 
 
+def game_over():
+    windown.fill(BLACK)
+    text = fonte.render("Game Over", True, ROXO)
+    windown.blit(text, [(WIDTH // 2), (HEIGHT // 2)])
+
+
 field = Field()
 field.run_matriz()
 print(field.matriz)
 state_matriz_rec = np.zeros((ROW, COLUMN), dtype=int)
 state_matriz_number = np.zeros((ROW, COLUMN), dtype=int)
 state_matriz_propagation = np.zeros((ROW, COLUMN), dtype=int)
-
-# TALVEZ TORNAR TODOS OS METODOS STATICS???
-# OS METODOS DA CLASSE ESTAO COMPLETAMENTE BAGUNÇADOS, TAVA TENTANDO
 
 
 class Reveal_empty:
@@ -99,8 +97,8 @@ class Reveal_empty:
                 state_matriz_propagation[rec_posicao_linha][rec_posicao_coluna] = 1
             Reveal_empty.propagate_empty_cells()
 
+    # PRECISO ADICIONAR IGNORAR DIAGONAIS
     def propagate_empty_cells():
-        global testi
         while len(propagate_empty_array) > 0:  # Enquanto houver elementos no array
             current_element = propagate_empty_array.pop(0)
             for linha, coluna in check_adjacent(current_element[0], current_element[1]):
@@ -114,7 +112,10 @@ class Reveal_empty:
                         rect_drawing_coordinates(linha, coluna)
                         reveal_numbers(linha, coluna)
                         state_matriz_propagation[linha][coluna] = 1
-            testi = len(propagate_empty_array)
+
+
+def put_flag():
+    pass
 
 
 def desenhar_tela():
@@ -137,12 +138,15 @@ def desenhar_tela():
     # desenha o numero acima do retangulo
     if numeros:
         for i, numero in enumerate(numeros):
-
             if i < len(ultimo_retangulo):
                 x, y = ultimo_retangulo[i]
                 # Renderizar o número como string
                 texto = fonte.render(str(numero), True, (255, 255, 255))
-                windown.blit(texto, (x, y))
+                if numero >= 9:
+                    windown.blit(bomb_img, (x, y))
+                    game_over()
+                else:
+                    windown.blit(texto, (x, y))
 
 
 def find_tile(x, y):
@@ -190,8 +194,11 @@ def main():
         desenhar_tela()
         if event.type == pygame.MOUSEBUTTONDOWN:
             x, y = event.pos
-            find_tile(x, y)
-            Reveal_empty.control_progation()
+            if event.button == 1:
+                find_tile(x, y)
+                Reveal_empty.control_progation()
+            if event.button == 2:
+                put_flag()
 
 
 if __name__ == '__main__':
