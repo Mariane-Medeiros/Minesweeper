@@ -18,8 +18,10 @@ propagate_empty_array = []
 cor_retangulo = (190, 190, 190)
 cor_linha = (255, 255, 255)
 fonte = pygame.font.SysFont('Arial', 30)
-ultimo_retangulo = []
-numeros = []
+positions_rec_left_click = []
+positions_rec_right_click = []
+position_numbers = []
+array_draw_flag = []
 BLACK = (0, 0, 0)
 largura_retangulo = 35
 altura_retangulo = 35
@@ -27,6 +29,7 @@ largura_total_matriz = COLUMN * largura_retangulo
 altura_total_matriz = ROW * altura_retangulo
 rec_posicao_linha, rec_posicao_coluna = 0, 0
 bomb_img = pygame.image.load("assets/bomb.png")
+flag_img = pygame.image.load("assets/flag.png")
 # Posição inicial para centralizar a matriz
 matriz_x_inicial = (WIDTH - largura_total_matriz) // 2
 matriz_y_inicial = (HEIGHT - altura_total_matriz) // 2
@@ -104,21 +107,27 @@ class Reveal_empty:
             for linha, coluna in check_adjacent(current_element[0], current_element[1]):
                 if state_matriz_propagation[linha][coluna] == 0:
                     if field.matriz[linha][coluna] == 0:
-                        rect_drawing_coordinates(linha, coluna)
+                        rect_drawing_coordinates(
+                            linha, coluna, positions_rec_left_click)
                         reveal_numbers(linha, coluna)
                         state_matriz_propagation[linha][coluna] = 1
                         propagate_empty_array.append((linha, coluna))
                     else:  # se eu bater em qualquer numero eu faço tudo menos colocar ele no array
-                        rect_drawing_coordinates(linha, coluna)
+                        rect_drawing_coordinates(
+                            linha, coluna, positions_rec_left_click)
                         reveal_numbers(linha, coluna)
                         state_matriz_propagation[linha][coluna] = 1
 
 
-def put_flag():
-    pass
+def put_flag(x_absolute, y_absolute):
+    global array_draw_flag
+    # find_tile(x_absolute, y_absolute)
+    if state_matriz_rec[rec_posicao_linha][rec_posicao_coluna] == 0:
+        array_draw_flag.append((rec_posicao_linha, rec_posicao_coluna))
+        state_matriz_rec[rec_posicao_linha][rec_posicao_coluna] = 1
 
 
-def desenhar_tela():
+def draw_matrix():
     for i in range(ROW):
         for j in range(COLUMN):
             x = matriz_x_inicial + j * largura_retangulo
@@ -127,19 +136,25 @@ def desenhar_tela():
                              (x, y, largura_retangulo, altura_retangulo))
             pygame.draw.rect(
                 windown, cor_linha, (x, y, largura_retangulo, altura_retangulo), 2)
+
+
+def draw_rect():
     # desenha um retangulo por cima para sinalizar que ele foi clicado
-    if ultimo_retangulo:
-        for i in ultimo_retangulo:
+    if positions_rec_left_click:
+        for i in positions_rec_left_click:
             x, y = i
             pygame.draw.rect(
                 windown, ROXO, (x, y, largura_retangulo, altura_retangulo))
             pygame.display.update(
                 (x, y, largura_retangulo, altura_retangulo))
     # desenha o numero acima do retangulo
-    if numeros:
-        for i, numero in enumerate(numeros):
-            if i < len(ultimo_retangulo):
-                x, y = ultimo_retangulo[i]
+
+
+def draw_number():
+    if position_numbers:
+        for i, numero in enumerate(position_numbers):
+            if i < len(positions_rec_left_click):
+                x, y = positions_rec_left_click[i]
                 # Renderizar o número como string
                 texto = fonte.render(str(numero), True, (255, 255, 255))
                 if numero >= 9:
@@ -147,6 +162,14 @@ def desenhar_tela():
                     game_over()
                 else:
                     windown.blit(texto, (x, y))
+
+
+def draw_flag():
+    if array_draw_flag:
+        for i in range(len(array_draw_flag)):
+            if i < len(array_draw_flag):
+                x, y = positions_rec_right_click[i]
+                windown.blit(flag_img, (x, y))
 
 
 def find_tile(x, y):
@@ -161,24 +184,22 @@ def find_tile(x, y):
     # divido o valor de x e y pelos retangulos para saber a linha e coluna
     rec_posicao_coluna = x // largura_retangulo
     rec_posicao_linha = y // altura_retangulo
-    rect_drawing_coordinates(rec_posicao_linha, rec_posicao_coluna)
-    reveal_numbers(rec_posicao_linha, rec_posicao_coluna)
 
 
-def rect_drawing_coordinates(l, c):
-    global ultimo_retangulo
+def rect_drawing_coordinates(l, c, array):
+    global positions_rec_left_click, positions_rec_right_click
     x_rect = c * largura_retangulo + matriz_x_inicial
     y_rect = l * altura_retangulo + matriz_y_inicial
     if state_matriz_number[l][c] == 0:
-        ultimo_retangulo.append((x_rect, y_rect))
         state_matriz_number[l][c] = 1
+        array.append((x_rect, y_rect))
 
 
 def reveal_numbers(l, c):
-    global numeros
+    global position_numbers
     if state_matriz_rec[l][c] == 0:
         numero = field.matriz[l][c]
-        numeros.append(numero)
+        position_numbers.append(numero)
         state_matriz_rec[l][c] = 1
 
 
@@ -191,14 +212,23 @@ def main():
 
         pygame.display.update()
         clock.tick(60)
-        desenhar_tela()
+        draw_matrix()
+        draw_rect()
+        draw_number()
+        draw_flag()
         if event.type == pygame.MOUSEBUTTONDOWN:
             x, y = event.pos
             if event.button == 1:
                 find_tile(x, y)
+                rect_drawing_coordinates(
+                    rec_posicao_linha, rec_posicao_coluna, positions_rec_left_click)
+                reveal_numbers(rec_posicao_linha, rec_posicao_coluna)
                 Reveal_empty.control_progation()
-            if event.button == 2:
-                put_flag()
+            if event.button == 3:
+                find_tile(x, y)
+                rect_drawing_coordinates(
+                    rec_posicao_linha, rec_posicao_coluna, positions_rec_right_click)
+                put_flag(x, y)
 
 
 if __name__ == '__main__':
