@@ -22,6 +22,7 @@ positions_rec_left_click = []
 positions_flag_right_click = []
 position_numbers = []
 dic_flag = {}
+all_bombs_positions = []
 BLACK = (0, 0, 0)
 largura_retangulo = 35
 altura_retangulo = 35
@@ -123,15 +124,39 @@ def add_flag(x, y):
     global dic_flag
     if state_matriz_rec[rec_indice_linha][rec_indice_coluna] == 0:
         dic_flag[rec_indice_linha, rec_indice_coluna] = (x, y)
+        dic_flag[(rec_indice_linha, rec_indice_coluna)] = {
+            "qty_right_click": 0}
         state_matriz_rec[rec_indice_linha][rec_indice_coluna] = 1
         state_matriz_number[rec_indice_linha][rec_indice_coluna] = 1
         state_matriz_propagation[rec_indice_linha][rec_indice_coluna] = 1
 
 
-'''def remove_flag(linha, coluna):
+def remove_flag(linha, coluna):
     if state_matriz_rec[rec_indice_linha][rec_indice_coluna] == 1:
         if (linha, coluna) in dic_flag:
-            dic_flag.pop((linha, coluna))'''
+            dic_flag.pop((linha, coluna))
+
+
+def get_all_bombs():
+    global all_bombs_positions
+    for i in range(ROW):
+        for j in range(COLUMN):
+            if field.matriz[i][j] >= 9:
+                # pegando l e c
+                all_bombs_positions.append((i, j))
+
+
+def draw_all_bombs():
+    if all_bombs_positions:
+        for i in all_bombs_positions:
+            i, j = i
+            x = matriz_x_inicial + j * largura_retangulo
+            y = matriz_y_inicial + i * altura_retangulo
+            print(x, y)
+            # pygame.draw.rect(windown, cor_retangulo,
+            # (x, y, largura_retangulo, altura_retangulo))
+            windown.blit(bomb_img, (x, y))
+        pygame.time.wait(3000)
 
 
 def draw_matrix():
@@ -166,6 +191,7 @@ def draw_number():
                 texto = fonte.render(str(numero), True, (255, 255, 255))
                 if numero >= 9:
                     windown.blit(bomb_img, (x, y))
+                    get_all_bombs()
                     game_over()
                 else:
                     windown.blit(texto, (x, y))
@@ -173,12 +199,9 @@ def draw_number():
 
 def draw_flag():
     if bool(dic_flag) == True:
-        print('test')
         for i in range(len(dic_flag)):
-
             if i < len(positions_flag_right_click):
                 x, y = positions_flag_right_click[i]
-                # print(dic_flag, positions_flag_right_click)
                 windown.blit(flag_img, (x, y))
 
 
@@ -224,6 +247,7 @@ def main():
         clock.tick(60)
         draw_matrix()
         draw_rect()
+        draw_all_bombs()
         draw_number()
         draw_flag()
         if event.type == pygame.MOUSEBUTTONDOWN:
