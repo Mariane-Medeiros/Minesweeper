@@ -3,6 +3,7 @@ import pygame
 from sys import exit
 import random
 import numpy as np
+import time
 
 pygame.init()
 ROW, COLUMN = 15, 15
@@ -18,11 +19,13 @@ propagate_empty_array = []
 cor_retangulo = (190, 190, 190)
 cor_linha = (255, 255, 255)
 fonte = pygame.font.SysFont('Arial', 30)
-positions_rec_left_click = []
-positions_flag_right_click = []
+positions_rec_left_click = {}
+positions_flag_right_click = {}
 position_numbers = []
 dic_flag = {}
 all_bombs_positions = []
+last_click_time = 0  # Armazena o tempo do último clique
+debounce_time = 0.2
 BLACK = (0, 0, 0)
 largura_retangulo = 35
 altura_retangulo = 35
@@ -124,8 +127,6 @@ def add_flag(x, y):
     global dic_flag
     if state_matriz_rec[rec_indice_linha][rec_indice_coluna] == 0:
         dic_flag[rec_indice_linha, rec_indice_coluna] = (x, y)
-        dic_flag[(rec_indice_linha, rec_indice_coluna)] = {
-            "qty_right_click": 0}
         state_matriz_rec[rec_indice_linha][rec_indice_coluna] = 1
         state_matriz_number[rec_indice_linha][rec_indice_coluna] = 1
         state_matriz_propagation[rec_indice_linha][rec_indice_coluna] = 1
@@ -135,6 +136,8 @@ def remove_flag(linha, coluna):
     if state_matriz_rec[rec_indice_linha][rec_indice_coluna] == 1:
         if (linha, coluna) in dic_flag:
             dic_flag.pop((linha, coluna))
+            state_matriz_rec[rec_indice_linha][rec_indice_coluna] = 0
+            # positions_flag_right_click.pop(linha, coluna)
 
 
 def get_all_bombs():
@@ -144,6 +147,7 @@ def get_all_bombs():
             if field.matriz[i][j] >= 9:
                 # pegando l e c
                 all_bombs_positions.append((i, j))
+    draw_all_bombs()
 
 
 def draw_all_bombs():
@@ -152,7 +156,6 @@ def draw_all_bombs():
             i, j = i
             x = matriz_x_inicial + j * largura_retangulo
             y = matriz_y_inicial + i * altura_retangulo
-            print(x, y)
             # pygame.draw.rect(windown, cor_retangulo,
             # (x, y, largura_retangulo, altura_retangulo))
             windown.blit(bomb_img, (x, y))
@@ -172,9 +175,9 @@ def draw_matrix():
 
 def draw_rect():
     # desenha um retangulo por cima para sinalizar que ele foi clicado
-    if positions_rec_left_click:
-        for i in positions_rec_left_click:
-            x, y = i
+    if bool(positions_rec_left_click) == True:
+        for posicao_x, posicao_y in positions_rec_left_click.values():
+            x, y = posicao_x, posicao_y
             pygame.draw.rect(
                 windown, ROXO, (x, y, largura_retangulo, altura_retangulo))
             pygame.display.update(
@@ -198,11 +201,13 @@ def draw_number():
 
 
 def draw_flag():
+    i = 0
     if bool(dic_flag) == True:
-        for i in range(len(dic_flag)):
+        for chave_linha, chave_coluna in dic_flag:
             if i < len(positions_flag_right_click):
-                x, y = positions_flag_right_click[i]
+                x, y = positions_flag_right_click[chave_linha, chave_coluna]
                 windown.blit(flag_img, (x, y))
+            i += 1
 
 
 def find_tile(x, y):
@@ -225,7 +230,7 @@ def rect_drawing_coordinates(l, c, array):
     y_rect = l * altura_retangulo + matriz_y_inicial
     if state_matriz_number[l][c] == 0:
         state_matriz_number[l][c] = 1
-        array.append((x_rect, y_rect))
+        array[rec_indice_linha, rec_indice_coluna] = (x_rect, y_rect)
 
 
 def reveal_numbers(l, c):
@@ -243,11 +248,12 @@ def main():
                 pygame.quit()
                 exit()
 
+        global last_click_time, debounce_time
+        current_time = time.time()
         pygame.display.update()
         clock.tick(60)
         draw_matrix()
         draw_rect()
-        draw_all_bombs()
         draw_number()
         draw_flag()
         if event.type == pygame.MOUSEBUTTONDOWN:
@@ -258,12 +264,18 @@ def main():
                     rec_indice_linha, rec_indice_coluna, positions_rec_left_click)
                 reveal_numbers(rec_indice_linha, rec_indice_coluna)
                 Reveal_empty.control_progation()
-            if event.button == 3:
+            if event.button == 3 and (current_time - last_click_time > debounce_time):
                 find_tile(x, y)
-                rect_drawing_coordinates(
-                    rec_indice_linha, rec_indice_coluna, positions_flag_right_click)
-                add_flag(x, y)
-                # remove_flag(rec_indice_linha, rec_indice_coluna)
+                if (rec_indice_linha, rec_indice_coluna) in dic_flag:
+                    rect_drawing_coordinates(
+                        rec_indice_linha, rec_indice_coluna, positions_flag_right_click)
+                    remove_flag(rec_indice_linha, rec_indice_coluna)
+                else:
+                    find_tile(x, y)
+                    rect_drawing_coordinates(
+                        rec_indice_linha, rec_indice_coluna, positions_flag_right_click)
+                    add_flag(x, y)
+                last_click_time = current_time  # Atualiza o tempo do último clique
 
 
 if __name__ == '__main__':
