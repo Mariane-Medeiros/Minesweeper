@@ -19,7 +19,7 @@ propagate_empty_array = []
 cor_retangulo = (190, 190, 190)
 cor_linha = (255, 255, 255)
 fonte = pygame.font.SysFont('Arial', 30)
-positions_rec_left_click = {}
+positions_rec_left_click = []
 positions_flag_right_click = {}
 position_numbers = []
 dic_flag = {}
@@ -104,7 +104,6 @@ class Reveal_empty:
                 state_matriz_propagation[rec_indice_linha][rec_indice_coluna] = 1
             Reveal_empty.propagate_empty_cells()
 
-    # PRECISO ADICIONAR IGNORAR DIAGONAIS
     def propagate_empty_cells():
         while len(propagate_empty_array) > 0:  # Enquanto houver elementos no array
             current_element = propagate_empty_array.pop(0)
@@ -175,14 +174,14 @@ def draw_matrix():
 
 def draw_rect():
     # desenha um retangulo por cima para sinalizar que ele foi clicado
-    if bool(positions_rec_left_click) == True:
-        for posicao_x, posicao_y in positions_rec_left_click.values():
-            x, y = posicao_x, posicao_y
+    if positions_rec_left_click:
+        for i in positions_rec_left_click:
+            x, y = i
+            # print(x, y)
             pygame.draw.rect(
                 windown, ROXO, (x, y, largura_retangulo, altura_retangulo))
             pygame.display.update(
                 (x, y, largura_retangulo, altura_retangulo))
-    # desenha o numero acima do retangulo
 
 
 def draw_number():
@@ -230,7 +229,11 @@ def rect_drawing_coordinates(l, c, array):
     y_rect = l * altura_retangulo + matriz_y_inicial
     if state_matriz_number[l][c] == 0:
         state_matriz_number[l][c] = 1
-        array[rec_indice_linha, rec_indice_coluna] = (x_rect, y_rect)
+        is_dict = isinstance(array, dict)
+        if is_dict:
+            array[rec_indice_linha, rec_indice_coluna] = (x_rect, y_rect)
+        else:
+            array.append((x_rect, y_rect))
 
 
 def reveal_numbers(l, c):
